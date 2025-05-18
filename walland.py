@@ -159,11 +159,12 @@ def set_wallpaper(image_path, backend='hyprpaper', backend_args=''):
         sys.exit(1)
 
 
-def download_image(url, source, save=False):
+def download_image(url, source, save=None):
     '''
     Download the image from the URL and
-    save it in the temporary directory or,
-    if save is True, in the current directory.
+    saves it either in a temporary directory
+    if save is None, the current directory if save is empty,
+    or as the path if save is provided
     '''
 
     logger.debug(f'Image URL: {url}')
@@ -190,35 +191,43 @@ def download_image(url, source, save=False):
                 logger.error(f'Error: {e}')
                 sys.exit(1)
 
-    # Filename is the source + the current date
-    filename = f'{source}_{time.strftime("%Y-%m-%d")}'
+    extension = ''
 
     # Add the extension
     url = url.split('?')[0]
     url = url.split('#')[0]
     if '.' in url.split('/')[-1]:
         # If it's in the URL, use that
-        filename += f'.{url.split(".")[-1]}'
+        extension = f'.{url.split(".")[-1]}'
     else:
         # Use the content-type
-        filename += f'.{response.headers["content-type"].split("/")[-1]}'
+        extension = f'.{response.headers["content-type"].split("/")[-1]}'
 
-    if save:
-        current_dir = os.getcwd()
-        filename = f'{current_dir}/{filename}'
+    # Filename is the source + the current date, unless provided via a non-directory `save` parameter
+    filename = f'{source}_{time.strftime("%Y-%m-%d")}'
+
+    if save is None:
+        image_dir = '/tmp/walland'
+        if not os.path.exists(image_dir):
+            os.makedirs(image_dir)
+    elif save == '':
+        image_dir = os.getcwd()
     else:
-        # Save the image in a temporary directory
-        tmp_dir = f'/tmp/walland'
-        if not os.path.exists(tmp_dir):
-            os.makedirs(tmp_dir)
-        filename = f'{tmp_dir}/{filename}'
+        if os.path.isdir(save):
+            image_dir = save
+        else:
+            image_dir = os.path.dirname(save)
+            filename = os.path.basename(save)
+            extension = ''
 
-    logger.debug(f'Saving image as {filename}')
+    full_path = os.path.join(image_dir, f'{filename}{extension}')
 
-    with open(filename, 'wb') as f:
+    logger.debug(f'Saving image as {full_path}')
+
+    with open(full_path, 'wb') as f:
         f.write(response.content)
 
-    return filename
+    return full_path
 
 
 def convert_image(image_path):
@@ -254,7 +263,7 @@ def main():
 
     parser.add_argument('-a', '--backend-args', type=str, default='', help='Additional arguments to pass to the backend.')
 
-    parser.add_argument('-S', '--save', action='store_true', help='Save the picture of the day in the current directory.')
+    parser.add_argument('-S', '--save', nargs='?', help='Save the picture of the day to this directory or path, or the current working directory.')
 
     parser.add_argument('-D', '--debug', action='store_true', help='Print debug information.')
 
@@ -334,10 +343,7 @@ def main():
 
     # swaybg does not support webp images
     extension = image_path.split('.')[-1]
-    if (
-        (args.backend == 'swaybg' and extension == 'webp') or
-        extension not in SUPPORTED_EXTENSIONS
-        ):
+    if (args.backend == 'swaybg' and extension == 'webp'):
         image_path = convert_image(image_path)
 
     set_wallpaper(image_path, backend=args.backend, backend_args=args.backend_args)

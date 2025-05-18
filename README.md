@@ -59,7 +59,7 @@ options:
                         Backend to use to set the wallpaper. Default: hyprpaper. Available backends: hyprpaper, swaybg, feh, swww
   -a BACKEND_ARGS, --backend-args BACKEND_ARGS
                         Additional arguments to pass to the backend.
-  -S, --save            Save the picture of the day in the current directory.
+  -S, --save            Can be used to save the picture of the day to a specific path, directory, or the current working directory
   -D, --debug           Print debug information.
 ```
 
